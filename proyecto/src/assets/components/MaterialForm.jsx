@@ -1,16 +1,15 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DataGrid } from '@mui/x-data-grid';
-import { TextField, Typography, Button, MenuItem, Paper, Box } from "@material-ui/core";
+import { TextField, Typography, Button, MenuItem, Paper, Box } from "@mui/material";
 import { Link } from "react-router-dom";
-import Avatar from '@material-ui/core/Avatar';
-import React from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import AppBar from '@material-ui/core/AppBar';
-import Toolbar from '@material-ui/core/Toolbar';
+import Avatar from '@mui/material/Avatar';
+import { makeStyles } from '@mui/styles';
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
 import base64Image from "../images/images";
-import uuid from "uuid";
-import Chip from '@material-ui/core/Chip';
-import { deepOrange } from '@material-ui/core/colors';
+import { v4 as uuid } from "uuid";
+import Chip from '@mui/material/Chip';
+import { deepOrange } from '@mui/material/colors';
 const baseUrl = "http://192.168.0.30:8080/snc-mf-api/v1/clients/1/materialGenerics";
  
 const useStyle = makeStyles((theme) => ({
