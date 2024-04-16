@@ -9,20 +9,18 @@ import base64Image from "../images/images";
 import Chip from '@mui/material/Chip';
 
 const baseUrl = "https://desarrollo.emisuite.es/snc-mf-api/v1/clients/1/materialGenerics";
-/*const useStyles = styled('div')({
-  display: 'flex',
-  margin: '8px', // Equivalente a theme.spacing(1)
-  color: '#fff', // Cambiar a tu color de texto
-  backgroundColor: '#f50057', 
-});
-*/
+const tagsUrl = "https://desarrollo.emisuite.es/snc-mf-api/v1/clients/1/tags";
 
 export default function MaterialForm() {
-  //const classes = useStyles(); 
-
   const [selectedRow, setSelectedRow] = useState(0);
-  const [target1, setTarget1] = useState([]);
-  const [target2, setTarget2] = useState([]);
+  const [combinedData, setCombinedData] = useState([]);
+  const [pagination, setPagination] = useState({
+    loading: false,
+    pageSize: 10,
+    page: 0,
+    totalRows: 0
+  });
+
   const [getData, setGetData] = useState({
     code: "",
     name: "",
@@ -31,70 +29,58 @@ export default function MaterialForm() {
     measureUnitId: 0,
     observations: ""
   });
-  const [paginationModel, setPaginationModel] = useState({
-    loading: false,
-    pageSize: 10,
-    page: 0
-  });
 
   useEffect(() => {
-    fetch(baseUrl)
-      .then(response => response.json())
-      .then(data1 => {
-        fetch("https://desarrollo.emisuite.es/snc-mf-api/v1/clients/1/tags")
-          .then(response => response.json())
-          .then(data2 => {
-            setTarget1(data1);
-            setTarget2(data2);
-          })
-      })
-  }, []);
-  /*
-  useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const response1 = await fetch(baseUrl);
-      const data1 = await response1.json();
-      
-      const response2 = await fetch("https://desarrollo.emisuite.es/snc-mf-api/v1/clients/1/tags");
-      const data2 = await response2.json();
-      
-      setTarget1(data1);
-      setTarget2(data2);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
+    const fetchData = async () => {
+      try {
+        const materialsResponse = await fetch(`${baseUrl}?pageSize=${pagination.pageSize}&page=${pagination.page}`);
+        const materialsData = await materialsResponse.json();
 
-  fetchData();
-}, []);
-  */
+        const tagsResponse = await fetch(`${tagsUrl}?pageSize=${pagination.pageSize}&page=${pagination.page}`);
+        const tagsData = await tagsResponse.json();
+
+        // Combine materials and tags data
+        const combined = materialsData.data.map(material => {
+          const tagsForMaterial = tagsData.data.filter(tag => tag.versionLock === material.id).map(tag => tag.name);
+          return { ...material, tags: tagsForMaterial.length > 0 ? tagsForMaterial : null };
+        });
+
+        setCombinedData(combined);
+        setPagination(prev => ({ ...prev, totalRows: materialsData.totalRows }));
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [pagination.page, pagination.pageSize]);
 
   const columns = [
     { field: 'id', headerName: 'Id', width: 150 },
-    { field: 'code', headerName: 'codigo', width: 150 },
+    { field: 'code', headerName: 'Codigo', width: 150 },
     { field: 'nameMaterial', headerName: 'Nombre', width: 150 },
-    { field: 'externalCode', headerName: 'código externo', width: 150 },
-    { field: 'description', headerName: 'descripción', width: 150 },
-    { field: 'measureUnitId', headerName: 'unidad de Medida', width: 150 },
-    { field: 'observations', headerName: 'observaciones', width: 150 },
+    { field: 'externalCode', headerName: 'Codigo Externo', width: 150 },
+    { field: 'description', headerName: 'Descripcion', width: 150 },
+    { field: 'measureUnitId', headerName: 'Unidad de Medida', width: 150 },
+    { field: 'observations', headerName: 'Observaciones', width: 150 },
+    { field: 'tags', headerName: 'Etiquetas', width: 150 },
     {
       field: 'descripcion',
-      headerName: 'Description',
+      headerName: 'Descripción',
       width: 250,
       renderCell: (params) => (
         <>
-          <Link to={`/materialtab/${params.row.id}`}>Details</Link>
+          <Link to={`/materialtab/${params.row.id}`}>Detalles</Link>
         </>
       ),
     },
     {
       field: 'details',
-      headerName: 'Details',
+      headerName: 'Detalles',
       width: 250,
       renderCell: (params) => (
         <>
-          <Link to={`/material/details/${params.row.id}`}>Description</Link>
+          <Link to={`/material/details/${params.row.id}`}>Descripción</Link>
         </>
       ),
     },
@@ -104,37 +90,18 @@ export default function MaterialForm() {
       width: 200,
       renderCell: (params) =>
         <>
-          <Avatar  src={params.value}>{params.value}</Avatar>
-        </>
-    },
-    {
-      field: "target",
-      headerName: "Target",
-      width: 200,
-      renderCell: (params) =>
-        <>
-          {params.value ? params.value.map((tag) => (
-            <Chip style={{ marginRight: 5 }} label={tag} color="secondary" />
-          )) : <Chip label="sin valor" color="primary"></Chip>}
+          <Avatar src={params.value}>{params.value}</Avatar>
         </>
     }
   ];
 
-  const rows = target1.map((dat) => {
-    const targets = target2.filter((tag) => tag.versionLock === dat.id).map(data => data.name);
-    return {
-      id: dat.id, code: dat.code, nameMaterial: dat.name, externalCode: dat.externalCode, description: dat.description, measureUnitId:
-        dat.measureUnitId, observations: dat.observations, imageUuid: dat.imageUuid ? `${base64Image}` : "N", target: targets.length > 0 ? targets : null
-    }
-  });
-
-  const handleClick = (params) => {
-    setSelectedRow(params.row)
-  }
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
 
   const handleCreate = async () => {
     if (!getData.code.trim() || !getData.name.trim() || !getData.externalCode.trim() || !getData.description.trim() || !getData.measureUnitId || !getData.observations.trim()) {
-      alert("ingresar campos");
+      alert("Por favor, ingrese todos los campos.");
       return;
     } else {
       const newData = {
@@ -159,7 +126,7 @@ export default function MaterialForm() {
         isFinished: false
       }
       try {
-        const response = await fetch('https://desarrollo.emisuite.es/snc-mf-api/v1/clients/1/materialGenerics', {
+        const response = await fetch(baseUrl, {
           method: "POST",
           body: JSON.stringify(newData),
           headers: {
@@ -167,29 +134,31 @@ export default function MaterialForm() {
           }
         });
         if (!response.ok) {
-          throw new Error("no connection");
+          throw new Error("Error de conexión");
         }
         const data = await response.json();
-        setTarget1(previus => ({ ...previus, data }));
-        alert("datos ingresados");
-      } catch (e) {
-        console.log("error de conexión")
+        setCombinedData(prevData => [...prevData, data]);
+        alert("Datos ingresados exitosamente.");
+      } catch (error) {
+        console.error("Error:", error);
+        alert("Hubo un error al conectar con el servidor.");
       }
     }
   }
 
   const handleDelete = async () => {
     try {
-      await fetch(`https://desarrollo.emisuite.es/snc-mf-api/v1/clients/1/materialGenerics/${selectedRow.id}`, {
-        method: "delete",
+      await fetch(`${baseUrl}/${selectedRow.id}`, {
+        method: "DELETE",
         headers: {
           'Content-Type': 'application/json',
         }
       });
-      setTarget1(previus => previus.filter((dato) => dato.id !== selectedRow.id))
-      alert("dato eliminado")
+      setCombinedData(prevData => prevData.filter(item => item.id !== selectedRow.id));
+      alert("Dato eliminado exitosamente.");
     } catch (error) {
-      console.log(error)
+      console.error("Error:", error);
+      alert("Hubo un error al eliminar el dato. Por favor, inténtelo de nuevo más tarde.");
     }
   }
 
@@ -216,7 +185,7 @@ export default function MaterialForm() {
       isFinished: false
     }
     try {
-      const response = await fetch(`https://desarrollo.emisuite.es/snc-mf-api/v1/clients/1/materialGenerics/${selectedRow.id}`, {
+      const response = await fetch(`${baseUrl}/${selectedRow.id}`, {
         method: 'PUT',
         body: JSON.stringify(newData),
         headers: {
@@ -225,25 +194,28 @@ export default function MaterialForm() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setTarget1(previous => (
-          previous.map((dato) => {
-            if (dato.id === selectedRow.id) {
-              return { ...dato, ...data };
+        const updatedData = await response.json();
+        setCombinedData(prevData => (
+          prevData.map(item => {
+            if (item.id === updatedData.id) {
+              return updatedData;
             }
-            return dato;
+            return item;
           })
         ));
-
         alert("¡Dato actualizado correctamente!");
       } else {
         throw new Error("Error al actualizar el dato.");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Hubo un error al actualizar el dato. Por favor, inténtalo de nuevo más tarde.");
+      alert("Hubo un error al actualizar el dato. Por favor, inténtelo de nuevo más tarde.");
     }
   };
+
+  const handleClick = (params) => {
+    setSelectedRow(params.row)
+  }
 
   return (
     <>
@@ -258,14 +230,13 @@ export default function MaterialForm() {
       </div>
       <DataGrid
         autoHeight
-        rows={rows}
-        loading={paginationModel.loading}
+        rows={combinedData}
         columns={columns}
-        pageSize={paginationModel.pageSize}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        rowsPerPageOptions={[5, 10]}
-        onPageChange={(newPage) => setPaginationModel(previus => ({ ...previus, page: newPage }))}
+        loading={pagination.loading}
+        pageSize={pagination.pageSize}
+        rowCount={pagination.totalRows}
+        onPageChange={handlePageChange}
+        paginationMode="server"
         checkboxSelection
         onRowClick={handleClick}
       />
@@ -277,31 +248,31 @@ export default function MaterialForm() {
             label="Code"
             id="standard-error-helper-text"
             value={getData.code}
-            onChange={(e) => setGetData(previus => ({ ...previus, code: e.target.value }))}
-            helperText="Incorrect entry."
+            onChange={(e) => setGetData(prev => ({ ...prev, code: e.target.value }))}
+            helperText="Entrada incorrecta."
           />
 
           <TextField
             label="Name"
             value={getData.name}
-            onChange={(e) => setGetData(previus => ({ ...previus, name: e.target.value }))}
+            onChange={(e) => setGetData(prev => ({ ...prev, name: e.target.value }))}
             id="filled-error"
             variant="filled"
           />
           <TextField
             label="External Code"
             value={getData.externalCode}
-            onChange={(e) => setGetData(previus => ({ ...previus, externalCode: e.target.value }))}
-            helperText="Incorrect entry."
+            onChange={(e) => setGetData(prev => ({ ...prev, externalCode: e.target.value }))}
+            helperText="Entrada incorrecta."
             variant="filled"
           />
 
           <TextField
             label="Description"
             value={getData.description}
-            onChange={(e) => setGetData(previus => ({ ...previus, description: e.target.value }))}
+            onChange={(e) => setGetData(prev => ({ ...prev, description: e.target.value }))}
             id="outlined-error"
-            defaultValue="Descripción"
+            defaultValue="Descripcion"
             variant="outlined"
           />
           <TextField
@@ -309,10 +280,10 @@ export default function MaterialForm() {
             id="standard-select-currency"
             select
             value={getData.measureUnitId}
-            onChange={(e) => setGetData(previus => ({ ...previus, measureUnitId: e.target.value }))}
-            helperText="Please select your currency"
+            onChange={(e) => setGetData(prev => ({ ...prev, measureUnitId: e.target.value }))}
+            helperText="Seleccione su moneda"
           >
-            {target1.map((option) => (
+            {combinedData.map((option) => (
               <MenuItem key={option.id} value={option.measureUnitId}>
                 {option.measureUnitId}
               </MenuItem>
@@ -322,21 +293,21 @@ export default function MaterialForm() {
           <TextField
             label="Observations"
             value={getData.observations}
-            onChange={(e) => setGetData(previus => ({ ...previus, observations: e.target.value }))}
+            onChange={(e) => setGetData(prev => ({ ...prev, observations: e.target.value }))}
             id="outlined-error-helper-text"
-            helperText="Incorrect entry."
+            helperText="Entrada incorrecta."
             variant="outlined"
           />
 
           <Box display="flex" justifyContent="center" width="100%" marginTop={2}>
             <Button onClick={handleCreate} variant="contained" color="secondary" style={{ marginTop: 20, marginRight: 10 }}>
-              Create
+              Crear
             </Button>
             <Button onClick={handleUpdate} variant="contained" color="secondary" style={{ marginTop: 20, marginRight: 10 }}>
-              Update
+              Actualizar
             </Button>
             <Button onClick={handleDelete} variant="contained" color="secondary" style={{ marginTop: 20, marginRight: 10 }}>
-              Delete
+              Eliminar
             </Button>
           </Box>
         </Box>
